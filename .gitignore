@@ -1,6 +1,24 @@
+# Python virtual environment
+venv/
 .env
-*.env
+
+# Python cache
 __pycache__/
+*.py[cod]
+*.pyo
+
+# VSCode and PyCharm settings
 .vscode/
-.venv/
-*.pyc
+.idea/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Jupyter and logs
+*.ipynb_checkpoints
+*.log
+
+# Deployment artifacts
+*.env.*
+.env.*
