@@ -1,24 +1,28 @@
-# Python virtual environment
+# Virtual environments
+.venv/
 venv/
-.env
 
-# Python cache
+# Environment variable files
+.env
+.env.*
+
+# Allow sample .env file
+!.env.example
+
+# Python bytecode/cache
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyc
 
-# VSCode and PyCharm settings
+# IDE/editor settings
 .vscode/
 .idea/
 
-# OS-specific files
-.DS_Store
-Thumbs.db
-
-# Jupyter and logs
+# Jupyter & logs
 *.ipynb_checkpoints
 *.log
 
-# Deployment artifacts
-*.env.*
-.env.*
+# OS-specific metadata
+.DS_Store
+Thumbs.db
