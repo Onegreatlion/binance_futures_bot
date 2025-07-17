@@ -1,7 +1,8 @@
-python-telegram-bot==20.8
-python-dotenv==1.0.1
-pandas==2.2.2
-pandas-ta==0.3.14b0
-numpy==1.26.4
-requests==2.32.3
-google-generativeai==0.5.4
+python-telegram-bot==20.6
+pandas
+pandas-ta
+requests
+httpx
+google-generativeai
+setuptools<81
+numpy<1.26
