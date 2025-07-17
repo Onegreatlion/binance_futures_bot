@@ -1,8 +1,9 @@
-python-telegram-bot==20.6
-pandas
-pandas-ta
-requests
-httpx
-google-generativeai
 setuptools<81
-numpy<1.26
+wheel
+python-telegram-bot==20.6
+pandas==2.1.4
+pandas-ta==0.3.14b0
+numpy==1.25.2
+httpx
+requests
+google-generativeai
