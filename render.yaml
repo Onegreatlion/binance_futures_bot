@@ -2,6 +2,17 @@ services:
   - type: web
     name: binance-futures-bot
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python binance-futures-bot.py
-    pythonVersion: 3.11
+    plan: free
+    runtime: python
+    region: oregon
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: python futureAi.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: ADMIN_USER_IDS
+        sync: false
+      - key: OTHER_ENV_VARS
+        sync: false
