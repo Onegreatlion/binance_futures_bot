@@ -1,9 +1,13 @@
 setuptools<81
 wheel
 python-telegram-bot==20.6
-pandas==2.1.4
+pandas==1.5.3
 pandas-ta==0.3.14b0
-numpy==1.25.2
+numpy==1.23.5
 httpx
-requests
+requests==2.31.0
 google-generativeai
+aiohttp==3.8.6
+websockets==11.0.3
+python-dotenv==1.0.1
+tqdm==4.66.2
