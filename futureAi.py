@@ -156,13 +156,13 @@ SYMBOL_INFO = {}
 
 class BinanceFuturesAPI:
     # Replace the existing __init__ with:
-    def __init__(self, config_obj, telegram_bot_instance=None):
-    self.config = config_obj
-    self.telegram_bot = telegram_bot_instance
-    self.running = False
-    self.ws_api = BinanceWebSocketAPI()  # <-- ADD THIS LINE
-    # ... rest of existing init code ...
-
+    def _init_(self, config_obj, telegram_bot_instance=None):
+        self.config = config_obj
+        self.telegram_bot = telegram_bot_instance
+        self.running = False
+        self.ws_api = BinanceWebSocketAPI()  # <-- ADD THIS LINE
+        # ... rest of existing init code ...
+    
     def _generate_signature(self, data):
         query_string = urllib.parse.urlencode(data)
         return hmac.new(self.api_secret.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256).hexdigest()
