@@ -5,6 +5,7 @@ services:
     plan: free
     runtime: python
     region: oregon
+    port: 10000
     buildCommand: |
       pip install --upgrade pip
       pip install -r requirements.txt
