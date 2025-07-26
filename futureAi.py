@@ -204,9 +204,7 @@ class BinanceFuturesAPI:
             logger.error(f"Unexpected error getting account info: {e}")
             return None
 
-    def get_ticker_price(self, symbol):
-        # Replace existing method with:
-async def get_ticker_price(self, symbol):
+    async def get_ticker_price(self, symbol):
     return await self.ws_api.get_price(symbol)
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to get ticker price for {symbol}: {e}")
