@@ -205,7 +205,7 @@ class BinanceFuturesAPI:
             return None
 
     async def get_ticker_price(self, symbol):
-    return await self.ws_api.get_price(symbol)
+        return await self.ws_api.get_price(symbol)
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to get ticker price for {symbol}: {e}")
             return None
