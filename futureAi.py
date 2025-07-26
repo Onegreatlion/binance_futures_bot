@@ -205,13 +205,15 @@ class BinanceFuturesAPI:
             return None
 
     async def get_ticker_price(self, symbol):
+    try:
         return await self.ws_api.get_price(symbol)
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to get ticker price for {symbol}: {e}")
-            return None
-        except (KeyError, ValueError) as e:
-            logger.error(f"Error parsing ticker price for {symbol}: {e}")
-            return None
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to get ticker price for {symbol}: {e}")
+        return None
+    except (KeyError, ValueError) as e:
+        logger.error(f"Error parsing ticker price for {symbol}: {e}")
+        return None
+
 
     def get_klines(self, symbol, interval, limit=100):
         try:
