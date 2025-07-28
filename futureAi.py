@@ -635,7 +635,7 @@ class TradingBot:
         self.notification_thread = None
 
         if config_obj.get("api_key") and config_obj.get("api_secret"):
-            self.mexc_api = MexcFuturesAPI(config_obj)
+            self.mexc_api = MEXCFuturesAPI(config_obj)
             self.technical_analysis = TechnicalAnalysis(self.mexc_api)
         else:
             self.mexc_api = None; self.technical_analysis = None
