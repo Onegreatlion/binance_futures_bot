@@ -271,7 +271,7 @@ class MEXCFuturesAPI:
 
     def change_margin_type(self, symbol, margin_type):
         try:
-            url = f"{self.base_url}/fapi/v1/marginType"
+            url = f"{self.base_url}/futures/v1/marginType"
             timestamp = int(time.time() * 1000)
             params = {'symbol': symbol, 'marginType': margin_type.upper(), 'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -1120,7 +1120,7 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
 
                 sl_p={'symbol':symbol,'side':tp_sl_sd,'order_type':"STOP_MARKET",'quantity':quantity,'stopPrice':sl_px,'reduceOnly':True}
                 if self.config.get("hedge_mode_enabled"): sl_p['positionSide']=position_side
-                sl_ord=self.binance_api.create_order(**sl_p)
+                sl_ord=self.mexc_api.create_order(**sl_p)
                 if sl_ord and 'orderId' in sl_ord:
                     trade_details['sl_order_id']=sl_ord['orderId']
                     logger.info(f"[{symbol}] REAL SL Order ID {trade_details['sl_order_id']} at {sl_px:.4f}")
@@ -1187,10 +1187,10 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
                     DAILY_STATS["current_balance_usdt"]+=pnl_usdt
                     DAILY_STATS["roi_percentage"]=((DAILY_STATS["current_balance_usdt"]-DAILY_STATS["starting_balance_usdt"])/DAILY_STATS["starting_balance_usdt"])*100
 
-            if trade_to_complete.get('real_trade',False) and self.binance_api:
+            if trade_to_complete.get('real_trade',False) and self.mexc_api:
                 sym=trade_to_complete['symbol']
-                if trade_to_complete.get('tp_order_id'): self.binance_api.cancel_order(sym,order_id=trade_to_complete.get('tp_order_id'))
-                if trade_to_complete.get('sl_order_id'): self.binance_api.cancel_order(sym,order_id=trade_to_complete.get('sl_order_id'))
+                if trade_to_complete.get('tp_order_id'): self.mexc_api.cancel_order(sym,order_id=trade_to_complete.get('tp_order_id'))
+                if trade_to_complete.get('sl_order_id'): self.mexc_api.cancel_order(sym,order_id=trade_to_complete.get('sl_order_id'))
 
             result_text = "💰 PROFIT" if pnl_usdt>0 else ("💔 LOSS" if pnl_usdt<0 else "⚖️ BREAKEVEN")
             emoji = "✅" if pnl_usdt>0 else ("❌" if pnl_usdt<0 else "➖")
@@ -1355,7 +1355,7 @@ class TelegramBotHandler:
         help_text += "  <code>/config</code> - ⚙️ Display current bot configuration\n"
         help_text += "  <code>/trades</code> - 📋 View last 10 trades\n"
         help_text += "  <code>/stats</code> - 📈 Show daily performance statistics\n"
-        help_text += "  <code>/balance</code> - 💰 Check Binance Futures account balance\n"
+        help_text += "  <code>/balance</code> - 💰 Check Mexc Futures account balance\n"
         help_text += "  <code>/positions</code> - 📂 View open trading positions on Binance\n"
         help_text += "  <code>/indicators SYMBOL</code> - 🔬 Indicator & signal info for <code>SYMBOL</code> (Example: <code>/indicators BTCUSDT</code>)\n"
         help_text += "  <code>/scannedpairs</code> - 📡 Show pair candidates from dynamic scan (if active)\n\n"
@@ -1620,10 +1620,10 @@ class TelegramBotHandler:
 
     async def balance_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
-        if not self.trading_bot or not self.trading_bot.binance_api: await update.message.reply_text("Bot/API not initialized."); return
+        if not self.trading_bot or not self.trading_bot.mexc_api: await update.message.reply_text("Bot/API not initialized."); return
         status_msg = await update.message.reply_text("🔄 Fetching balance...")
         try:
-            bal=self.trading_bot.binance_api.get_balance()
+            bal=self.trading_bot.mexc_api.get_balance()
             if bal:text=(f"💰<b>ACCOUNT BALANCE</b>💰\n\nTotal:<b>${bal.get('total',0):.2f}</b>\nAvailable:${bal.get('available',0):.2f}\nUnreal PnL:${bal.get('unrealized_pnl',0):.2f}")
             else:text="❌ Failed to get balance."
             await status_msg.edit_text(text,parse_mode=constants.ParseMode.HTML)
@@ -1632,10 +1632,10 @@ class TelegramBotHandler:
     async def positions_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
         msg_obj = update.callback_query.message if update.callback_query else update.message
-        if not self.trading_bot or not self.trading_bot.binance_api: await msg_obj.reply_text("Bot/API not initialized."); return
+        if not self.trading_bot or not self.trading_bot.mexc_api: await msg_obj.reply_text("Bot/API not initialized."); return
         status_msg = await msg_obj.reply_text("🔄 Fetching open positions...")
         try:
-            pos=self.trading_bot.binance_api.get_open_positions()
+            pos=self.trading_bot.mexc_api.get_open_positions()
             text=f"📈<b>OPEN POSITIONS ON BINANCE</b>📈\n"
             if not pos: text+="\nNo open positions found."
             else:
@@ -1735,7 +1735,7 @@ class TelegramBotHandler:
         await update.callback_query.edit_message_text("🔄 Closing all REAL open positions...")
         closed_c,error_c=0,0
         try:
-            open_pos=self.trading_bot.binance_api.get_open_positions()
+            open_pos=self.trading_bot.mexc_api.get_open_positions()
             if not open_pos: await update.callback_query.edit_message_text("No open positions found."); return
             symbols_with_pos=list(set(p['symbol']for p in open_pos if float(p.get('positionAmt',0))!=0))
             if not symbols_with_pos: await update.callback_query.edit_message_text("No non-zero amount positions found."); return
@@ -1752,7 +1752,7 @@ class TelegramBotHandler:
                     closed_c+=1;logger.info(f"MKT close {sym} ID:{closed_ord['orderId']}")
                     active_bot_trade=next((t for t in ACTIVE_TRADES if t['symbol']==sym and not t.get('completed')and t.get('real_trade')),None)
                     if active_bot_trade:
-                        approx_exit=self.trading_bot.binance_api.get_ticker_price(sym)or float(curr_pos.get('markPrice',0))
+                        approx_exit=self.trading_bot.mexc_api.get_ticker_price(sym)or float(curr_pos.get('markPrice',0))
                         self.trading_bot.complete_trade(active_bot_trade['id'],approx_exit,"manual_admin_close_all")
                 else:error_c+=1;logger.error(f"Failed MKT close {sym}.Resp:{closed_ord}")
                 await asyncio.sleep(0.2) # Use asyncio.sleep in async func
@@ -1793,7 +1793,7 @@ class TelegramBotHandler:
         await update.callback_query.edit_message_text("🔄 Closing all REAL open positions...")
         closed_c,error_c=0,0
         try:
-            open_pos=self.trading_bot.binance_api.get_open_positions()
+            open_pos=self.trading_bot.mexc_api.get_open_positions()
             if not open_pos: await update.callback_query.edit_message_text("No open positions found."); return
             symbols_with_pos=list(set(p['symbol']for p in open_pos if float(p.get('positionAmt',0))!=0))
             if not symbols_with_pos: await update.callback_query.edit_message_text("No non-zero amount positions found."); return
@@ -1810,7 +1810,7 @@ class TelegramBotHandler:
                     closed_c+=1;logger.info(f"MKT close {sym} ID:{closed_ord['orderId']}")
                     active_bot_trade=next((t for t in ACTIVE_TRADES if t['symbol']==sym and not t.get('completed')and t.get('real_trade')),None)
                     if active_bot_trade:
-                        approx_exit=self.trading_bot.binance_api.get_ticker_price(sym)or float(curr_pos.get('markPrice',0))
+                        approx_exit=self.trading_bot.mexc_api.get_ticker_price(sym)or float(curr_pos.get('markPrice',0))
                         self.trading_bot.complete_trade(active_bot_trade['id'],approx_exit,"manual_admin_close_all")
                 else:error_c+=1;logger.error(f"Failed MKT close {sym}.Resp:{closed_ord}")
                 await asyncio.sleep(0.2) # Use asyncio.sleep in async func
@@ -1892,11 +1892,11 @@ class TelegramBotHandler:
         if not self.trading_bot.config["api_key"]or not self.trading_bot.config["api_secret"]: await msg_obj.reply_text("⚠️ API creds not set.Cannot enable real."); return
         if self.trading_bot.config["use_real_trading"]: await msg_obj.reply_text("Real trading already ON."); return
         status_msg=await msg_obj.reply_text("🔄 Testing API for REAL trading...")
-        if self.trading_bot.binance_api:
-            acc_info=self.trading_bot.binance_api.get_account_info()
+        if self.trading_bot.mexc_api:
+            acc_info=self.trading_bot.mexc_api.get_account_info()
             if acc_info:self.trading_bot.config["use_real_trading"]=True;await status_msg.edit_text(f"✅ Real trading ENABLED!\n⚠️ Trades use REAL funds.Monitor!");logger.warning(f"REAL TRADING ENABLED by admin.")
             else: await status_msg.edit_text("❌ API conn failed.Real NOT enabled.Check keys/perms/IP.")
-        else: await status_msg.edit_text("❌ Binance API module N/A.Real NOT enabled.")
+        else: await status_msg.edit_text("❌ Mexc API module N/A.Real NOT enabled.")
 
     async def disable_real_trading_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
@@ -1909,12 +1909,12 @@ class TelegramBotHandler:
         if not await self.is_authorized(update): return
         if not self.trading_bot: await update.message.reply_text("Bot not init."); return
         if not self.trading_bot.config.get("api_key")or not self.trading_bot.config.get("api_secret"): await update.message.reply_text("⚠️ API creds not set."); return
-        if not self.trading_bot.binance_api: await update.message.reply_text("⚠️ Binance API module not init."); return
-        status_msg=await update.message.reply_text("🔄 Testing Binance API conn...")
+        if not self.trading_bot.mexc_api: await update.message.reply_text("⚠️ Binance API module not init."); return
+        status_msg=await update.message.reply_text("🔄 Testing Mexc API conn...")
         try:
-            acc_info=self.trading_bot.binance_api.get_account_info()
+            acc_info=self.trading_bot.mexc_api.get_account_info()
             if acc_info:
-                bal=self.trading_bot.binance_api.get_balance()
+                bal=self.trading_bot.mexc_api.get_balance()
                 text=(f"✅ API Test OK!\nAssets:{len(acc_info.get('assets',[]))},Pos:{len(acc_info.get('positions',[]))}\nUSDT Bal:${bal.get('total',0):.2f}(Avail:${bal.get('available',0):.2f})"if bal else"USDT Bal:N/A")
                 await status_msg.edit_text(text)
             else: await status_msg.edit_text(f"❌ API Test Failed.\nget_account_info returned None.Check Key,Secret,Perms,IP.")
@@ -1950,9 +1950,9 @@ class TelegramBotHandler:
         syms_str=args[1];syms_proc=[s.strip().upper()for s in syms_str.split(',')]
         if action=='add':
             added_c=0
-            if self.trading_bot.binance_api:
+            if self.trading_bot.mexc_api:
                 for sym in syms_proc:
-                    if self.trading_bot.binance_api.get_ticker_price(sym):
+                    if self.trading_bot.mexc_api.get_ticker_price(sym):
                         if sym not in watchlist:watchlist.append(sym);added_c+=1
                     else:logger.warning(f"Watchlist add:Invalid sym {sym}")
             else:
@@ -1994,7 +1994,7 @@ class TelegramBotHandler:
             curr_real=self.trading_bot.config.get("use_real_trading",False)
             if not curr_real:
                 if not self.trading_bot.config["api_key"]or not self.trading_bot.config["api_secret"]:await query.edit_message_text("⚠️ API creds not set.");return
-                if self.trading_bot.binance_api and self.trading_bot.binance_api.get_account_info():self.trading_bot.config["use_real_trading"]=True;logger.warning("REAL TRADING ENABLED via quick toggle.")
+                if self.trading_bot.mexc_api and self.trading_bot.mexc_api.get_account_info():self.trading_bot.config["use_real_trading"]=True;logger.warning("REAL TRADING ENABLED via quick toggle.")
                 else:await query.edit_message_text("❌ API conn test failed.");return
             else:self.trading_bot.config["use_real_trading"]=False;logger.info("Real trading disabled via quick toggle.")
             await self.status_command(update,context)
@@ -2019,8 +2019,8 @@ def main():
     logger.info("Bot starting up...")
     if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN=="YOUR_FALLBACK_TELEGRAM_TOKEN": logger.critical("TELEGRAM_BOT_TOKEN_ENV not set.Bot cannot start."); return
     if not ADMIN_USER_IDS: logger.critical("ADMIN_USER_IDS_ENV not set or invalid.Bot cannot auth users."); return
-    if(not BINANCE_API_KEY or BINANCE_API_KEY=="YOUR_FALLBACK_BINANCE_API_KEY"or not BINANCE_API_SECRET or BINANCE_API_SECRET=="YOUR_FALLBACK_BINANCE_API_SECRET"):
-        logger.warning("Binance API creds not fully set.Real trading/API functions will fail.")
+    if(not MEXC_API_KEY or MEXC_API_KEY=="YOUR_FALLBACK_MEXC_API_KEY"or not MEXC_API_SECRET or MEXC_API_SECRET=="YOUR_FALLBACK_BINANCE_API_SECRET"):
+        logger.warning("Mexc API creds not fully set.Real trading/API functions will fail.")
 
     telegram_handler = TelegramBotHandler(TELEGRAM_BOT_TOKEN,ADMIN_USER_IDS)
     trading_bot_instance = TradingBot(CONFIG,telegram_handler)
