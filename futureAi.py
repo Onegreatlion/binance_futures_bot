@@ -68,12 +68,12 @@ except ValueError:
     logger.error("ADMIN_USER_IDS_ENV format error. Expected comma-separated integers.")
     ADMIN_USER_IDS = []
 
-BINANCE_API_KEY = os.getenv("BINANCE_API_KEY_ENV", "YOUR_FALLBACK_BINANCE_API_KEY")
-BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET_ENV", "YOUR_FALLBACK_BINANCE_API_SECRET")
+MEXC_API_KEY = os.getenv("MEXC_API_KEY_ENV", "YOUR_MEXC_API_KEY")
+MEXC_API_SECRET = os.getenv("MEXC_API_SECRET_ENV", "YOUR_FALLBACK_MEXC_API_SECRET")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_ENV")
 # --- End Load Environment Variables ---
 
-BINANCE_API_URL = "https://fapi.binance.com"
+MEXC_API_URL = "https://futures.mexc.com"
 
 # --- Gemini AI Model Configuration ---
 gemini_model_instance = None
@@ -123,13 +123,13 @@ AI_MODE_CONFIG = {
 }
 
 CONFIG = {
-    "api_key": BINANCE_API_KEY, "api_secret": BINANCE_API_SECRET,
+    "api_key": MEXC_API_KEY, "api_secret": MEXC_API_SECRET,
     "trading_enabled_on_start": False,
     "trading_mode": "standard",
     "use_real_trading": False,
-    "static_trading_pairs": ["BTCUSDT", "ETHUSDT"],
+    "static_trading_pairs": ["BTC_USDT", "ETH_USDT"],
     "dynamic_pair_selection": True,
-    "dynamic_watchlist_symbols": ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "ADAUSDT", "XRPUSDT", "DOGEUSDT", "AVAXUSDT", "DOTUSDT", "MATICUSDT", "LINKUSDT", "TRXUSDT", "LTCUSDT", "UNIUSDT", "ATOMUSDT", "ETCUSDT", "BCHUSDT", "XLMUSDT", "NEARUSDT", "ALGOUSDT", "VETUSDT", "FTMUSDT", "MANAUSDT", "SANDUSDT", "APEUSDT", "AXSUSDT", "FILUSDT", "ICPUSDT", "AAVEUSDT", "MKRUSDT", "COMPUSDT", "GRTUSDT", "RUNEUSDT", "THETAUSDT", "EGLDUSDT"],
+    "dynamic_watchlist_symbols": ["BTC_USDT", "ETH_USDT", "BNB_USDT", "SOL_USDT", "ADA_USDT", "XRP_USDT", "DOGE_USDT", "AVAX_USDT", "DOT_USDT", "MATIC_USDT", "LINK_USDT", "TRX_USDT", "LTC_USDT", "UNI_USDT", "ATOM_USDT", "ETC_USDT", "BCH_USDT", "XLM_USDT", "NEAR_USDT", "ALGO_USDT", "VET_USDT", "FTM_USDT", "MANA_USDT", "SAND_USDT", "APE_USDT", "AXS_USDT", "FIL_USDT", "ICP_USDT", "AAVE_USDT", "MKR_USDT", "COMP_USDT", "GRT_USDT", "RUNE_USDT", "THETA_USDT", "EGLD_USDT"],
     "max_active_dynamic_pairs": 3,
     "min_24h_volume_usdt_for_scan": 10000000,
     "dynamic_scan_interval_seconds": 300,
@@ -149,12 +149,12 @@ DAILY_STATS = {"date": datetime.now().strftime("%Y-%m-%d"), "total_trades": 0, "
 SYMBOL_INFO = {}
 
 
-class BinanceFuturesAPI:
+class MEXCFuturesAPI:
     def __init__(self, config_dict):
         self.config_dict = config_dict
         self.api_key = config_dict["api_key"]
         self.api_secret = config_dict["api_secret"]
-        self.base_url = BINANCE_API_URL
+        self.base_url = MEXC_API_URL
 
     def _generate_signature(self, data):
         query_string = urllib.parse.urlencode(data)
@@ -165,7 +165,7 @@ class BinanceFuturesAPI:
 
     def get_exchange_info(self):
         try:
-            url = f"{self.base_url}/fapi/v1/exchangeInfo"
+            url = f"{self.base_url}/futures/v1/exchangeInfo"
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             return response.json()
@@ -175,7 +175,7 @@ class BinanceFuturesAPI:
 
     def get_account_info(self):
         try:
-            url = f"{self.base_url}/fapi/v2/account"
+            url = f"{self.base_url}/futures/v2/account"
             timestamp = int(time.time() * 1000)
             params = {'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -186,9 +186,9 @@ class BinanceFuturesAPI:
         except requests.exceptions.HTTPError as e:
             logger.error(f"API error response for get_account_info: {e.response.status_code} - {e.response.text}")
             if e.response.status_code == 401:
-                logger.error("Authentication failed (401): Invalid API key or secret, or general auth issue. Check Binance key permissions and IP whitelist.")
+                logger.error("Authentication failed (401): Invalid API key or secret, or general auth issue. Check Mexc key permissions and IP whitelist.")
             elif e.response.status_code == 403:
-                logger.error("Forbidden (403): API key may lack necessary permissions (e.g., for Futures). Check Binance key permissions.")
+                logger.error("Forbidden (403): API key may lack necessary permissions (e.g., for Futures). Check Mexc key permissions.")
             return None
         except requests.exceptions.RequestException as e:
             logger.error(f"RequestException getting account info: {e}")
@@ -199,7 +199,7 @@ class BinanceFuturesAPI:
 
     def get_ticker_price(self, symbol):
         try:
-            url = f"{self.base_url}/fapi/v1/ticker/price"
+            url = f"{self.base_url}/futures/v1/ticker/price"
             params = {'symbol': symbol}
             response = requests.get(url, params=params, timeout=5)
             response.raise_for_status()
@@ -213,7 +213,7 @@ class BinanceFuturesAPI:
 
     def get_klines(self, symbol, interval, limit=100):
         try:
-            url = f"{self.base_url}/fapi/v1/klines"
+            url = f"{self.base_url}/futures/v1/klines"
             params = {'symbol': symbol, 'interval': interval, 'limit': limit}
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
@@ -235,7 +235,7 @@ class BinanceFuturesAPI:
 
     def get_ticker_24hr(self, symbol: str = None) -> list | dict | None:
         try:
-            url = f"{self.base_url}/fapi/v1/ticker/24hr"
+            url = f"{self.base_url}/futures/v1/ticker/24hr"
             params = {}
             if symbol:
                 params['symbol'] = symbol.upper()
@@ -254,7 +254,7 @@ class BinanceFuturesAPI:
 
     def change_leverage(self, symbol, leverage):
         try:
-            url = f"{self.base_url}/fapi/v1/leverage"
+            url = f"{self.base_url}/futures/v1/leverage"
             timestamp = int(time.time() * 1000)
             params = {'symbol': symbol, 'leverage': leverage, 'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -291,7 +291,7 @@ class BinanceFuturesAPI:
 
     def get_position_mode(self):
         try:
-            url = f"{self.base_url}/fapi/v1/positionSide/dual"
+            url = f"{self.base_url}/futures/v1/positionSide/dual"
             timestamp = int(time.time() * 1000)
             params = {'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -304,7 +304,7 @@ class BinanceFuturesAPI:
 
     def change_position_mode(self, dual_side_position: bool):
         try:
-            url = f"{self.base_url}/fapi/v1/positionSide/dual"
+            url = f"{self.base_url}/futures/v1/positionSide/dual"
             timestamp = int(time.time() * 1000)
             params = {'dualSidePosition': 'true' if dual_side_position else 'false', 'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -328,7 +328,7 @@ class BinanceFuturesAPI:
                     stop_price=None, position_side=None, reduce_only=False,
                     time_in_force="GTC", close_position=False):
         try:
-            url = f"{self.base_url}/fapi/v1/order"
+            url = f"{self.base_url}/futures/v1/order"
             timestamp = int(time.time() * 1000)
             params = {'symbol': symbol, 'side': side.upper(), 'type': order_type.upper(), 'timestamp': timestamp}
             if order_type.upper() not in ['MARKET', 'STOP_MARKET', 'TAKE_PROFIT_MARKET']: params['timeInForce'] = time_in_force
@@ -364,7 +364,7 @@ class BinanceFuturesAPI:
 
     def get_open_orders(self, symbol=None):
         try:
-            url = f"{self.base_url}/fapi/v1/openOrders"
+            url = f"{self.base_url}/futures/v1/openOrders"
             timestamp = int(time.time() * 1000)
             params = {'timestamp': timestamp}
             if symbol: params['symbol'] = symbol
@@ -378,7 +378,7 @@ class BinanceFuturesAPI:
 
     def cancel_order(self, symbol, order_id=None, orig_client_order_id=None):
         try:
-            url = f"{self.base_url}/fapi/v1/order"
+            url = f"{self.base_url}/futures/v1/order"
             timestamp = int(time.time() * 1000)
             params = {'symbol': symbol, 'timestamp': timestamp}
             if order_id: params['orderId'] = order_id
@@ -401,7 +401,7 @@ class BinanceFuturesAPI:
 
     def cancel_all_orders(self, symbol):
         try:
-            url = f"{self.base_url}/fapi/v1/allOpenOrders"
+            url = f"{self.base_url}/futures/v1/allOpenOrders"
             timestamp = int(time.time() * 1000)
             params = {'symbol': symbol, 'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -512,8 +512,8 @@ class BinanceFuturesAPI:
 
 
 class TechnicalAnalysis:
-    def __init__(self, binance_api_instance):
-        self.binance_api = binance_api_instance
+    def __init__(self, mexc_api_instance):
+        self.mexc_api = mexc_api_instance
 
     def calculate_indicators(self, symbol: str, timeframe: str = None) -> dict | None:
         global INDICATOR_SETTINGS
@@ -635,11 +635,11 @@ class TradingBot:
         self.notification_thread = None
 
         if config_obj.get("api_key") and config_obj.get("api_secret"):
-            self.binance_api = BinanceFuturesAPI(config_obj)
-            self.technical_analysis = TechnicalAnalysis(self.binance_api)
+            self.mexc_api = MexcFuturesAPI(config_obj)
+            self.technical_analysis = TechnicalAnalysis(self.mexc_api)
         else:
-            self.binance_api = None; self.technical_analysis = None
-            logger.warning("Binance API key/secret not configured. Limited mode.")
+            self.mexc_api = None; self.technical_analysis = None
+            logger.warning("Mexc API key/secret not configured. Limited mode.")
 
         self.dynamic_pair_scanner_thread = None
         self.currently_scanned_pairs = []
@@ -652,9 +652,9 @@ class TradingBot:
         DAILY_STATS["date"] = datetime.now().strftime("%Y-%m-%d")
         DAILY_STATS["total_trades"] = 0; DAILY_STATS["winning_trades"] = 0; DAILY_STATS["losing_trades"] = 0
         DAILY_STATS["total_profit_percentage_leveraged"] = 0.0; DAILY_STATS["total_profit_usdt"] = 0.0
-        if self.binance_api and self.config.get("use_real_trading"):
+        if self.mexc_api and self.config.get("use_real_trading"):
             try:
-                bal = self.binance_api.get_balance()
+                bal = self.mexc_api.get_balance()
                 if bal: DAILY_STATS["starting_balance_usdt"] = bal['total']; DAILY_STATS["current_balance_usdt"] = bal['total']; DAILY_STATS["roi_percentage"] = 0.0
                 else: DAILY_STATS["starting_balance_usdt"] = 0.0; DAILY_STATS["current_balance_usdt"] = 0.0
             except Exception as e: logger.error(f"Error daily stats balance: {e}"); DAILY_STATS["starting_balance_usdt"] = 0.0; DAILY_STATS["current_balance_usdt"] = 0.0
@@ -772,8 +772,8 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
         changes_made = []
         volatility_percent, btc_price, market_trend = 0.0, None, "Undetermined" # Add trend later
 
-        if self.binance_api:
-            atr_val, btc_price_val = self.binance_api.get_atr("BTCUSDT", timeframe='1h', period=14, limit=50)
+        if self.mexc_api:
+            atr_val, btc_price_val = self.binance_api.get_atr("BTC_USDT", timeframe='1h', period=14, limit=50)
             btc_price = btc_price_val
             if atr_val and btc_price and btc_price > 0:
                 volatility_percent = (atr_val / btc_price) * 100
@@ -870,10 +870,10 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
         logger.info("AI Optimizer thread (for asyncio loop) started.")
 
     def get_liquid_pairs_from_watchlist(self):
-        if not self.binance_api: return self.config.get("dynamic_watchlist_symbols", [])
+        if not self.mexc_api: return self.config.get("dynamic_watchlist_symbols", [])
         watchlist = self.config.get("dynamic_watchlist_symbols", []); min_vol = self.config.get("min_24h_volume_usdt_for_scan", 0)
         if not watchlist: return []
-        all_tickers = self.binance_api.get_ticker_24hr()
+        all_tickers = self.mexc_api.get_ticker_24hr()
         if not all_tickers or not isinstance(all_tickers, list): logger.error(f"Failed 24h ticker. Type: {type(all_tickers)}"); return watchlist
         tickers_map = {item['symbol']: item for item in all_tickers if isinstance(item, dict) and 'symbol' in item}
         return [s for s in watchlist if tickers_map.get(s) and float(tickers_map[s].get('quoteVolume', 0)) >= min_vol]
@@ -914,12 +914,12 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
         if not self.config.get("ai_mode_active"): self.apply_trading_mode_settings()
 
         if self.binance_api and (self.config.get("hedge_mode_enabled") or self.config.get("use_real_trading")):
-            acc_info = self.binance_api.get_account_info()
-            if not acc_info: logger.error("CRITICAL: Binance API fail. Cannot start."); self.send_notification(f"❌ <b>Bot Start Fail</b>\nAPI connection failed."); self.running = False; return False
+            acc_info = self.mexc_api.get_account_info()
+            if not acc_info: logger.error("CRITICAL: Mexc API fail. Cannot start."); self.send_notification(f"❌ <b>Bot Start Fail</b>\nAPI connection failed."); self.running = False; return False
             logger.info("Binance API connection successful.")
-        if self.config.get("hedge_mode_enabled", False) and self.binance_api:
+        if self.config.get("hedge_mode_enabled", False) and self.mexc_api:
             try:
-                res = self.binance_api.change_position_mode(dual_side_position=True)
+                res = self.mexc_api.change_position_mode(dual_side_position=True)
                 if res and res.get('code') == 200: logger.info(f"Hedge Mode set/confirmed. Msg: {res.get('msg','OK')}")
                 else: logger.warning(f"Failed Hedge Mode. Resp: {res}.")
             except Exception as e: logger.error(f"Error setting hedge: {e}", exc_info=True)
@@ -1032,8 +1032,8 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
         if self.config.get("use_real_trading") and not self.binance_api: logger.error(f"[{sym}] Real trade but API N/A. Abort."); self.send_notification(f"⚠️ Real trade {sym} abort: API N/A."); return
         qty = self.calculate_position_size(sym,px)
         if not qty or qty<=0: logger.error(f"[{sym}] Invalid pos size ({qty}). Abort."); self.send_notification(f"⚠️ Trade {sym} abort: Invalid position size."); return
-        if self.binance_api and self.config.get("use_real_trading"):
-            if not self.binance_api.change_leverage(sym,self.config["leverage"]): logger.warning(f"[{sym}] Failed leverage set.")
+        if self.mexc_api and self.config.get("use_real_trading"):
+            if not self.mexc_api.change_leverage(sym,self.config["leverage"]): logger.warning(f"[{sym}] Failed leverage set.")
         trade_dets = self.create_trade(sym,act,pos_side,ord_side,px,qty)
         if trade_dets: self.send_trade_notification(trade_dets,signal.get('reasons',[]))
         else: logger.error(f"[{sym}] Failed to create trade object.")
@@ -1044,8 +1044,8 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
             if not self.config.get("use_real_trading") or not self.binance_api:
                 fixed_usdt = self.config.get("fixed_position_size_usdt",10); lev = self.config.get("leverage",1)
                 sim_qty = (fixed_usdt * lev) / current_price if current_price > 0 else 0
-                return self.binance_api.round_quantity(symbol,sim_qty) if self.binance_api and sim_qty>0 else (round(sim_qty,8) if sim_qty>0 else None)
-            bal = self.binance_api.get_balance()
+                return self.mexc_api.round_quantity(symbol,sim_qty) if self.mexc_api and sim_qty>0 else (round(sim_qty,8) if sim_qty>0 else None)
+            bal = self.mexc_api.get_balance()
             if not bal or 'available' not in bal: return None
             avail_bal = float(bal['available'])
             margin_usdt = 0.0
@@ -1056,9 +1056,9 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
             lev = self.config.get("leverage",1)
             qty_calc = (margin_usdt * lev) / current_price if current_price > 0 else 0
             if qty_calc <= 0: return None
-            rnd_qty = self.binance_api.round_quantity(symbol,qty_calc)
+            rnd_qty = self.mexc_api.round_quantity(symbol,qty_calc)
             if rnd_qty <= 0: return None
-            s_info = self.binance_api.get_symbol_info(symbol)
+            s_info = self.mexc_api.get_symbol_info(symbol)
             if s_info:
                 min_q = float(s_info.get('minQty','1e-8')); min_not = float(s_info.get('minNotional','1.0'))
                 if rnd_qty < min_q: logger.error(f"[{symbol}] Qty {rnd_qty} < minQty {min_q}. Skip."); return None
