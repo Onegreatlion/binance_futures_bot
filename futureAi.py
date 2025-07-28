@@ -7,11 +7,6 @@ from telegram import (
 )
 
 # Import from telegram.ext for building bot applications and handling updates
-# Add these imports at the TOP with other imports (~line 10)
-from flask import Flask
-import websockets
-import threading
-import json
 from telegram.ext import (
     Application,                  # Main class for running the bot
     CommandHandler,               # Handler for commands (e.g., /start, /help)
@@ -155,14 +150,12 @@ SYMBOL_INFO = {}
 
 
 class BinanceFuturesAPI:
-    # Replace the existing __init__ with:
-    def __init__(self, config_obj, telegram_bot_instance=None):
-        self.config = config_obj
-        self.telegram_bot = telegram_bot_instance
-        self.running = False
-        self.ws_api = BinanceWebSocketAPI()  # <-- ADD THIS LINE
-        # ... rest of existing init code ...
-    
+    def __init__(self, config_dict):
+        self.config_dict = config_dict
+        self.api_key = config_dict["api_key"]
+        self.api_secret = config_dict["api_secret"]
+        self.base_url = BINANCE_API_URL
+
     def _generate_signature(self, data):
         query_string = urllib.parse.urlencode(data)
         return hmac.new(self.api_secret.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256).hexdigest()
@@ -204,16 +197,19 @@ class BinanceFuturesAPI:
             logger.error(f"Unexpected error getting account info: {e}")
             return None
 
-    async def get_ticker_price(self, symbol):
-    try:
-        return await self.ws_api.get_price(symbol)
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to get ticker price for {symbol}: {e}")
-        return None
-    except (KeyError, ValueError) as e:
-        logger.error(f"Error parsing ticker price for {symbol}: {e}")
-        return None
-
+    def get_ticker_price(self, symbol):
+        try:
+            url = f"{self.base_url}/fapi/v1/ticker/price"
+            params = {'symbol': symbol}
+            response = requests.get(url, params=params, timeout=5)
+            response.raise_for_status()
+            return float(response.json()['price'])
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to get ticker price for {symbol}: {e}")
+            return None
+        except (KeyError, ValueError) as e:
+            logger.error(f"Error parsing ticker price for {symbol}: {e}")
+            return None
 
     def get_klines(self, symbol, interval, limit=100):
         try:
@@ -327,21 +323,10 @@ class BinanceFuturesAPI:
         except requests.exceptions.RequestException as e:
             logger.error(f"Error changing position mode: {e}")
             return None
-# Insert this RIGHT AFTER the BinanceFuturesAPI class (~line 330)
-class BinanceWebSocketAPI:
-    def __init__(self):
-        self.ws_url = "wss://fstream.binance.com/ws"
-        
-    async def get_price(self, symbol):
-        async with websockets.connect(f"{self.ws_url}/{symbol.lower()}@ticker") as ws:
-            data = await ws.recv()
-            return float(json.loads(data)['c'])
-            #end
-    
-   # Replace create_order with WebSocket version:
-async def create_order(self, symbol, side, order_type, quantity):
-    # Implement WebSocket order logic here
-    pass  # You'll need to expand
+
+    def create_order(self, symbol, side, order_type, quantity=None, price=None,
+                    stop_price=None, position_side=None, reduce_only=False,
+                    time_in_force="GTC", close_position=False):
         try:
             url = f"{self.base_url}/fapi/v1/order"
             timestamp = int(time.time() * 1000)
@@ -2056,21 +2041,6 @@ def main():
         if trading_bot_instance and trading_bot_instance.running:
             trading_bot_instance.stop_trading()
         logger.info("Bot shutdown sequence complete.")
-
-        # Add this RIGHT BEFORE the main() function (~line 2200)
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Bot is running", 200
-
-def run_flask():
-    app.run(host='0.0.0.0', port=10000)
-
-# Start Flask when file loads
-flask_thread = threading.Thread(target=run_flask, daemon=True)
-flask_thread.start()
-#---------
 
 if __name__ == "__main__":
     main()
