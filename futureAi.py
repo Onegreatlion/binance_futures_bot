@@ -73,7 +73,7 @@ MEXC_API_SECRET = os.getenv("MEXC_API_SECRET_ENV", "YOUR_FALLBACK_MEXC_API_SECRE
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_ENV")
 # --- End Load Environment Variables ---
 
-MEXC_API_URL = "https://futures.mexc.com"
+MEXC_API_URL = "https://contract.mexc.com"
 
 # --- Gemini AI Model Configuration ---
 gemini_model_instance = None
@@ -165,7 +165,7 @@ class MEXCFuturesAPI:
 
     def get_exchange_info(self):
         try:
-            url = f"{self.base_url}/futures/v1/exchangeInfo"
+            url = f"{self.base_url}/contract/v1/exchangeInfo"
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             return response.json()
@@ -175,7 +175,7 @@ class MEXCFuturesAPI:
 
     def get_account_info(self):
         try:
-            url = f"{self.base_url}/futures/v2/account"
+            url = f"{self.base_url}/contract/v2/account"
             timestamp = int(time.time() * 1000)
             params = {'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -199,7 +199,7 @@ class MEXCFuturesAPI:
 
     def get_ticker_price(self, symbol):
         try:
-            url = f"{self.base_url}/futures/v1/ticker/price"
+            url = f"{self.base_url}/contract/v1/ticker/price"
             params = {'symbol': symbol}
             response = requests.get(url, params=params, timeout=5)
             response.raise_for_status()
@@ -213,7 +213,7 @@ class MEXCFuturesAPI:
 
     def get_klines(self, symbol, interval, limit=100):
         try:
-            url = f"{self.base_url}/futures/v1/klines"
+            url = f"{self.base_url}/contract/v1/klines"
             params = {'symbol': symbol, 'interval': interval, 'limit': limit}
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
@@ -235,7 +235,7 @@ class MEXCFuturesAPI:
 
     def get_ticker_24hr(self, symbol: str = None) -> list | dict | None:
         try:
-            url = f"{self.base_url}/futures/v1/ticker/24hr"
+            url = f"{self.base_url}/contract/v1/ticker/24hr"
             params = {}
             if symbol:
                 params['symbol'] = symbol.upper()
@@ -254,7 +254,7 @@ class MEXCFuturesAPI:
 
     def change_leverage(self, symbol, leverage):
         try:
-            url = f"{self.base_url}/futures/v1/leverage"
+            url = f"{self.base_url}/contract/v1/leverage"
             timestamp = int(time.time() * 1000)
             params = {'symbol': symbol, 'leverage': leverage, 'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -271,7 +271,7 @@ class MEXCFuturesAPI:
 
     def change_margin_type(self, symbol, margin_type):
         try:
-            url = f"{self.base_url}/futures/v1/marginType"
+            url = f"{self.base_url}/contract/v1/marginType"
             timestamp = int(time.time() * 1000)
             params = {'symbol': symbol, 'marginType': margin_type.upper(), 'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -291,7 +291,7 @@ class MEXCFuturesAPI:
 
     def get_position_mode(self):
         try:
-            url = f"{self.base_url}/futures/v1/positionSide/dual"
+            url = f"{self.base_url}/contract/v1/positionSide/dual"
             timestamp = int(time.time() * 1000)
             params = {'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -304,7 +304,7 @@ class MEXCFuturesAPI:
 
     def change_position_mode(self, dual_side_position: bool):
         try:
-            url = f"{self.base_url}/futures/v1/positionSide/dual"
+            url = f"{self.base_url}/contract/v1/positionSide/dual"
             timestamp = int(time.time() * 1000)
             params = {'dualSidePosition': 'true' if dual_side_position else 'false', 'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
