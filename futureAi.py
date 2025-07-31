@@ -73,7 +73,7 @@ MEXC_API_SECRET = os.getenv("MEXC_API_SECRET_ENV", "YOUR_FALLBACK_MEXC_API_SECRE
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_ENV")
 # --- End Load Environment Variables ---
 
-MEXC_API_URL = "https://contract.mexc.com"
+MEXC_API_URL = "https://futures.mexc.com"
 
 # --- Gemini AI Model Configuration ---
 gemini_model_instance = None
@@ -165,7 +165,7 @@ class MEXCFuturesAPI:
 
     def get_exchange_info(self):
         try:
-            url = f"{self.base_url}/contract/v1/exchangeInfo"
+            url = f"{self.base_url}/futures/v1/exchangeInfo"
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             return response.json()
@@ -175,7 +175,7 @@ class MEXCFuturesAPI:
 
     def get_account_info(self):
         try:
-            url = f"{self.base_url}/contract/v2/account"
+            url = f"{self.base_url}/futures/v2/account"
             timestamp = int(time.time() * 1000)
             params = {'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -199,7 +199,7 @@ class MEXCFuturesAPI:
 
     def get_ticker_price(self, symbol):
         try:
-            url = f"{self.base_url}/contract/v1/ticker/price"
+            url = f"{self.base_url}/futures/v1/ticker/price"
             params = {'symbol': symbol}
             response = requests.get(url, params=params, timeout=5)
             response.raise_for_status()
@@ -213,7 +213,7 @@ class MEXCFuturesAPI:
 
     def get_klines(self, symbol, interval, limit=100):
         try:
-            url = f"{self.base_url}/contract/v1/klines"
+            url = f"{self.base_url}/futures/v1/klines"
             params = {'symbol': symbol, 'interval': interval, 'limit': limit}
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
@@ -235,7 +235,7 @@ class MEXCFuturesAPI:
 
     def get_ticker_24hr(self, symbol: str = None) -> list | dict | None:
         try:
-            url = f"{self.base_url}/contract/v1/ticker/24hr"
+            url = f"{self.base_url}/futures/v1/ticker/24hr"
             params = {}
             if symbol:
                 params['symbol'] = symbol.upper()
@@ -254,7 +254,7 @@ class MEXCFuturesAPI:
 
     def change_leverage(self, symbol, leverage):
         try:
-            url = f"{self.base_url}/contract/v1/leverage"
+            url = f"{self.base_url}/futures/v1/leverage"
             timestamp = int(time.time() * 1000)
             params = {'symbol': symbol, 'leverage': leverage, 'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -271,7 +271,7 @@ class MEXCFuturesAPI:
 
     def change_margin_type(self, symbol, margin_type):
         try:
-            url = f"{self.base_url}/contract/v1/marginType"
+            url = f"{self.base_url}/futures/v1/marginType"
             timestamp = int(time.time() * 1000)
             params = {'symbol': symbol, 'marginType': margin_type.upper(), 'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -291,7 +291,7 @@ class MEXCFuturesAPI:
 
     def get_position_mode(self):
         try:
-            url = f"{self.base_url}/contract/v1/positionSide/dual"
+            url = f"{self.base_url}/futures/v1/positionSide/dual"
             timestamp = int(time.time() * 1000)
             params = {'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -304,7 +304,7 @@ class MEXCFuturesAPI:
 
     def change_position_mode(self, dual_side_position: bool):
         try:
-            url = f"{self.base_url}/contract/v1/positionSide/dual"
+            url = f"{self.base_url}/futures/v1/positionSide/dual"
             timestamp = int(time.time() * 1000)
             params = {'dualSidePosition': 'true' if dual_side_position else 'false', 'timestamp': timestamp}
             params['signature'] = self._generate_signature(params)
@@ -528,7 +528,7 @@ class TechnicalAnalysis:
         required_klines = max_period + 50
         if limit_req < required_klines: limit_req = required_klines
 
-        df = self.binance_api.get_klines(symbol, tf, limit=limit_req)
+        df = self.mexc_api.get_klines(symbol, tf, limit=limit_req)
         if df is None or df.empty or len(df) < max_period :
             logger.error(f"[{symbol}@{tf}] Insufficient klines ({len(df) if df is not None else 0}, need >{max_period}) for indicators.")
             return None
@@ -556,7 +556,7 @@ class TechnicalAnalysis:
                 if l_col in bb_df.columns: df['bb_lower'], df['bb_middle'], df['bb_upper'] = bb_df[l_col], bb_df[m_col], bb_df[u_col]
                 else: df['bb_lower'], df['bb_middle'], df['bb_upper'] = pd.NA, pd.NA, pd.NA; logger.warning(f"[{symbol}@{tf}] BB cols not found ({l_col}).")
             else: df['bb_lower'], df['bb_middle'], df['bb_upper'] = pd.NA, pd.NA, pd.NA; logger.warning(f"[{symbol}@{tf}] ta.bbands failed.")
-            
+
             df['candle_color'] = np.where(df['close'] >= df['open'], 'green', 'red')
             df['candle_size_pct'] = ((df['close'] - df['open']).abs() / df['open'].replace(0, np.nan) * 100).fillna(0.0)
 
@@ -773,7 +773,7 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
         volatility_percent, btc_price, market_trend = 0.0, None, "Undetermined" # Add trend later
 
         if self.mexc_api:
-            atr_val, btc_price_val = self.binance_api.get_atr("BTC_USDT", timeframe='1h', period=14, limit=50)
+            atr_val, btc_price_val = self.mexc_api.get_atr("BTC_USDT", timeframe='1h', period=14, limit=50)
             btc_price = btc_price_val
             if atr_val and btc_price and btc_price > 0:
                 volatility_percent = (atr_val / btc_price) * 100
@@ -830,11 +830,11 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
             self.send_notification(notif)
         else: logger.info("🤖 AI Optimizer: No significant setting changes.")
         self.last_ai_optimization_time = time.time()
-        
+
     def get_current_ai_settings_summary(self):
         return (f"  - Mode: {self.config['trading_mode'].capitalize()} (L:{self.config['leverage']}x)\n"
                 f"  - Indicators: {INDICATOR_SETTINGS.get('description', 'N/A')}")
-                
+
     def get_current_settings_summary_for_ai_notification(self):
         # More detailed version for AI notification
         summary = (
@@ -913,10 +913,10 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
         if self.config.get("ai_mode_active"): logger.info("AI mode active. Allowing moment for initial AI opt..."); time.sleep(5) # Allow AI to run once
         if not self.config.get("ai_mode_active"): self.apply_trading_mode_settings()
 
-        if self.binance_api and (self.config.get("hedge_mode_enabled") or self.config.get("use_real_trading")):
+        if self.mexc_api and (self.config.get("hedge_mode_enabled") or self.config.get("use_real_trading")):
             acc_info = self.mexc_api.get_account_info()
             if not acc_info: logger.error("CRITICAL: Mexc API fail. Cannot start."); self.send_notification(f"❌ <b>Bot Start Fail</b>\nAPI connection failed."); self.running = False; return False
-            logger.info("Binance API connection successful.")
+            logger.info("Mexc API connection successful.")
         if self.config.get("hedge_mode_enabled", False) and self.mexc_api:
             try:
                 res = self.mexc_api.change_position_mode(dual_side_position=True)
@@ -958,7 +958,7 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
 
         self.send_notification(start_msg); logger.info("Trading bot started. Threads running.")
         return True
-        
+
 
     def stop_trading(self):
         if not self.running: logger.info("Bot not running."); return False
@@ -1024,12 +1024,12 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
     def process_signal(self, signal):
         sym, act, px = signal['symbol'], signal['action'], signal['price']
         logger.info(f"Processing signal: {sym} {act} at {px:.4f}, Str:{signal['strength']}")
-        if not self.config.get("use_real_trading") and not self.binance_api:
+        if not self.config.get("use_real_trading") and not self.mexc_api:
              logger.info(f"[SIM] Would open {act} for {sym} at {px:.4f}")
              trade_sim = self.create_trade(sym,act,"LONG" if act=="LONG" else "SHORT","BUY" if act=="LONG" else "SELL",px,0.001)
              if trade_sim: self.send_trade_notification(trade_sim,signal.get('reasons',[])); return
         pos_side, ord_side = ("LONG" if act=="LONG" else "SHORT"), ("BUY" if act=="LONG" else "SELL")
-        if self.config.get("use_real_trading") and not self.binance_api: logger.error(f"[{sym}] Real trade but API N/A. Abort."); self.send_notification(f"⚠️ Real trade {sym} abort: API N/A."); return
+        if self.config.get("use_real_trading") and not self.mexc_api: logger.error(f"[{sym}] Real trade but API N/A. Abort."); self.send_notification(f"⚠️ Real trade {sym} abort: API N/A."); return
         qty = self.calculate_position_size(sym,px)
         if not qty or qty<=0: logger.error(f"[{sym}] Invalid pos size ({qty}). Abort."); self.send_notification(f"⚠️ Trade {sym} abort: Invalid position size."); return
         if self.mexc_api and self.config.get("use_real_trading"):
@@ -1041,7 +1041,7 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
     def calculate_position_size(self, symbol: str, current_price: float) -> float | None:
         try:
             if current_price <= 0: return None
-            if not self.config.get("use_real_trading") or not self.binance_api:
+            if not self.config.get("use_real_trading") or not self.mexc_api:
                 fixed_usdt = self.config.get("fixed_position_size_usdt",10); lev = self.config.get("leverage",1)
                 sim_qty = (fixed_usdt * lev) / current_price if current_price > 0 else 0
                 return self.mexc_api.round_quantity(symbol,sim_qty) if self.mexc_api and sim_qty>0 else (round(sim_qty,8) if sim_qty>0 else None)
@@ -1074,13 +1074,13 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
             tp_calc = entry_price*(1+tp_pct/100) if action=="LONG" else entry_price*(1-tp_pct/100)
             sl_calc = entry_price*(1-sl_pct/100) if action=="LONG" else entry_price*(1+sl_pct/100)
             tp_px,sl_px = entry_price,entry_price
-            if self.binance_api: tp_px,sl_px = self.binance_api.round_price(symbol,tp_calc),self.binance_api.round_price(symbol,sl_calc)
+            if self.mexc_api: tp_px,sl_px = self.mexc_api.round_price(symbol,tp_calc),self.mexc_api.round_price(symbol,sl_calc)
             else: tp_px,sl_px = round(tp_calc,8),round(sl_calc,8)
             if (action=="LONG" and (sl_px>=entry_price or tp_px<=entry_price)) or \
                (action=="SHORT" and (sl_px<=entry_price or tp_px>=entry_price)):
                 logger.warning(f"[{symbol}] Invalid TP/SL: E ${entry_price:.4f}, TP ${tp_px:.4f}, SL ${sl_px:.4f}.")
 
-            trade_details = { # Renamed trade to trade_details
+            trade_details = {
                 'id':f"{symbol}-{int(time.time())}-{random.randint(100,999)}",
                 'timestamp':time.time(), 'symbol':symbol, 'action':action,
                 'position_side':position_side, 'order_side':order_side,
@@ -1092,13 +1092,13 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
                 'mode':self.config.get('trading_mode','N/A'),
                 'entry_order_id':None, 'avg_fill_price':None,
                 'tp_order_id':None, 'sl_order_id':None,
-                'real_trade':self.config.get("use_real_trading",False) and bool(self.binance_api)
+                'real_trade':self.config.get("use_real_trading",False) and bool(self.mexc_api)
             }
-            if trade_details['real_trade']: # use trade_details consistently
+            if trade_details['real_trade']:
                 logger.info(f"[{symbol}] Attempting REAL orders...")
                 entry_p={'symbol':symbol,'side':order_side,'order_type':"MARKET",'quantity':quantity}
                 if self.config.get("hedge_mode_enabled"): entry_p['positionSide']=position_side
-                entry_ord=self.binance_api.create_order(**entry_p)
+                entry_ord=self.mexc_api.create_order(**entry_p)
                 if not entry_ord or 'orderId' not in entry_ord:
                     logger.error(f"[{symbol}] Failed REAL entry. Resp:{entry_ord}")
                     self.send_notification(f"❌ Failed to open REAL position {action} for {symbol}.")
@@ -1110,7 +1110,7 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
                 tp_sl_sd="SELL" if action=="LONG" else "BUY"
                 tp_p={'symbol':symbol,'side':tp_sl_sd,'order_type':"TAKE_PROFIT_MARKET",'quantity':quantity,'stopPrice':tp_px,'reduceOnly':True}
                 if self.config.get("hedge_mode_enabled"): tp_p['positionSide']=position_side
-                tp_ord=self.binance_api.create_order(**tp_p)
+                tp_ord=self.mexc_api.create_order(**tp_p)
                 if tp_ord and 'orderId' in tp_ord:
                     trade_details['tp_order_id']=tp_ord['orderId']
                     logger.info(f"[{symbol}] REAL TP Order ID {trade_details['tp_order_id']} at {tp_px:.4f}")
@@ -1132,13 +1132,13 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
                 logger.info(f"[{symbol}] SIMULATED {action} trade at {entry_price:.4f}, Qty:{quantity}.")
                 trade_details['status']='ACTIVE'
             ACTIVE_TRADES.append(trade_details); DAILY_STATS["total_trades"]+=1
-            return trade_details # return the modified dict
+            return trade_details
         except Exception as e:
             logger.error(f"[{symbol}] Error create_trade:{e}",exc_info=True)
             self.send_notification(f"❌ Error creating trade for {symbol}:{e}")
             return None
 
-    def send_trade_notification(self, trade_info, reasons): # Renamed param to trade_info
+    def send_trade_notification(self, trade_info, reasons):
         action_emoji = "🟢" if trade_info['action'] == "LONG" else "🔴"
         trade_type_str = "REAL 🔥" if trade_info['real_trade'] else "SIMULATION 🧪"
         trade_mode_str = trade_info.get('mode', 'N/A').capitalize()
@@ -1169,7 +1169,7 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
         self.send_notification(msg)
 
     def complete_trade(self, trade_id, exit_price, exit_reason="manual_close"):
-        trade_to_complete = next((t for t in ACTIVE_TRADES if t['id']==trade_id and not t.get('completed')),None) # Renamed trade to trade_to_complete
+        trade_to_complete = next((t for t in ACTIVE_TRADES if t['id']==trade_id and not t.get('completed')),None)
         if not trade_to_complete: return False
         try:
             e_px,qty,lev,act = trade_to_complete['entry_price'],trade_to_complete['quantity'],trade_to_complete['leverage'],trade_to_complete['action']
@@ -1214,7 +1214,7 @@ Example: {{"rsi_period":12, "rsi_oversold":30, ... , "description":"Gemini Profi
             msg += f"🕰️ <b>Completion Time:</b> {trade_to_complete['exit_time']}"
 
             self.send_notification(msg)
-            ACTIVE_TRADES.remove(trade_to_complete); COMPLETED_TRADES.append(trade_to_complete) # Use the correct variable name
+            ACTIVE_TRADES.remove(trade_to_complete); COMPLETED_TRADES.append(trade_to_complete)
             logger.info(f"Trade {trade_id} completed. Result:{result_text} PnL:${pnl_usdt:.2f} USDT.")
             return True
         except Exception as e: logger.error(f"Error completing trade {trade_id}:{e}",exc_info=True); return False
@@ -1340,7 +1340,7 @@ class TelegramBotHandler:
         kbd = [[InlineKeyboardButton("🚀 Start Trading", callback_data="select_trading_mode")],
                [InlineKeyboardButton("📊 Stats", callback_data="stats"), InlineKeyboardButton("📈 Positions", callback_data="positions")],
                [InlineKeyboardButton("⚙️ Settings", callback_data="config"), InlineKeyboardButton("📋 Status", callback_data="status")]]
-        await update.message.reply_text("👋 Welcome to Binance Futures Bot!\nUse menu or /help\n Author @Onegreatlion", reply_markup=InlineKeyboardMarkup(kbd))
+        await update.message.reply_text("👋 Welcome to Mexc Futures Bot!\nUse menu or /help\n Author @Onegreatlion", reply_markup=InlineKeyboardMarkup(kbd))
 
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
@@ -1356,14 +1356,14 @@ class TelegramBotHandler:
         help_text += "  <code>/trades</code> - 📋 View last 10 trades\n"
         help_text += "  <code>/stats</code> - 📈 Show daily performance statistics\n"
         help_text += "  <code>/balance</code> - 💰 Check Mexc Futures account balance\n"
-        help_text += "  <code>/positions</code> - 📂 View open trading positions on Binance\n"
-        help_text += "  <code>/indicators SYMBOL</code> - 🔬 Indicator & signal info for <code>SYMBOL</code> (Example: <code>/indicators BTCUSDT</code>)\n"
+        help_text += "  <code>/positions</code> - 📂 View open trading positions on Mexc\n"
+        help_text += "  <code>/indicators SYMBOL</code> - 🔬 Indicator & signal info for <code>SYMBOL</code> (Example: <code>/indicators BTC_USDT</code>)\n"
         help_text += "  <code>/scannedpairs</code> - 📡 Show pair candidates from dynamic scan (if active)\n\n"
 
         help_text += "🕹️ <b><u>MAIN TRADING CONTROL</u></b> 🕹️\n"
         help_text += "  <code>/starttrade</code> - ▶️ Start automated trading process (select mode)\n"
         help_text += "  <code>/stoptrade</code> - ⏹️ Safely stop automated trading process\n"
-        help_text += "  <code>/closeall</code> - ⚠️ <b>(REAL & DANGEROUS!)</b> Close ALL open positions on Binance\n\n"
+        help_text += "  <code>/closeall</code> - ⚠️ <b>(REAL & DANGEROUS!)</b> Close ALL open positions on Mexc\n\n"
 
         help_text += "🛠️ <b><u>STRATEGY & RISK SETTINGS</u></b> 🛠️\n"
         help_text += "  <i>(Note: If AI Mode active, AI may change these settings)</i>\n"
@@ -1374,7 +1374,7 @@ class TelegramBotHandler:
 
         help_text += "↔️ <b><u>TRADING PAIR MANAGEMENT</u></b> ↔️\n"
         help_text += "  <code>/toggledynamic</code> - 🔄 Enable/Disable dynamic pair selection\n"
-        help_text += "  <code>/addpair SYMBOL</code> - ➕ (If dynamic OFF) Add static pair (Example: <code>/addpair ETHUSDT</code>)\n"
+        help_text += "  <code>/addpair SYMBOL</code> - ➕ (If dynamic OFF) Add static pair (Example: <code>/addpair ETH_USDT</code>)\n"
         help_text += "  <code>/removepair SYMBOL</code> - ➖ (If dynamic OFF) Remove static pair\n"
         help_text += "  <code>/watchlist CMD [SYMBOL,...]</code> - 📋 (If dynamic ON) Manage watchlist (<code>list</code>|<code>add</code>|<code>remove</code>|<code>clear</code>)\n\n"
 
@@ -1386,7 +1386,7 @@ class TelegramBotHandler:
         help_text += "🔩 <b><u>SYSTEM & UTILITIES</u></b> 🔩\n"
         help_text += "  <code>/enablereal</code> - 🔥 Enable trading with REAL FUNDS (Test API first!)\n"
         help_text += "  <code>/disablereal</code> - 🧪 Disable real mode (switch to SIMULATION)\n"
-        help_text += "  <code>/testapi</code> - 📡 Test your API Key connection to Binance"
+        help_text += "  <code>/testapi</code> - 📡 Test your API Key connection to Mexc"
 
         max_len = 4096
         try:
@@ -1395,7 +1395,7 @@ class TelegramBotHandler:
                 parts = []
                 current_part = ""
                 main_sections = help_text.split("\n\n") # Split by double newlines
-                
+
                 for section in main_sections:
                     section_with_break = section + "\n\n" # Add separator back
                     if len(current_part) + len(section_with_break) > max_len - 50: # -50 buffer
@@ -1404,7 +1404,7 @@ class TelegramBotHandler:
                         current_part = section_with_break
                     else:
                         current_part += section_with_break
-                
+
                 if current_part: # Remaining last part
                     parts.append(current_part)
 
@@ -1415,7 +1415,7 @@ class TelegramBotHandler:
                     if not part_msg.strip(): continue # Skip empty sections
                     await update.message.reply_text(part_msg, parse_mode=constants.ParseMode.HTML)
                     if i < len(parts) - 1:
-                        await asyncio.sleep(0.5) 
+                        await asyncio.sleep(0.5)
             else:
                 await update.message.reply_text(help_text, parse_mode=constants.ParseMode.HTML)
 
@@ -1429,7 +1429,7 @@ class TelegramBotHandler:
         except Exception as e_general:
             logger.error(f"General error sending help message: {e_general}", exc_info=True)
             await update.message.reply_text("General error displaying help.")
-            
+
     async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
         msg_obj = update.callback_query.message if update.callback_query else update.message
@@ -1473,7 +1473,7 @@ class TelegramBotHandler:
 
         keyboard = [
             [InlineKeyboardButton("🚀 Start Trading", callback_data="select_trading_mode"), InlineKeyboardButton("🛑 Stop Trading", callback_data="stop_trading")],
-            [InlineKeyboardButton("📊 Detailed Stats", callback_data="stats"), InlineKeyboardButton("📈 View Binance Positions", callback_data="positions")],
+            [InlineKeyboardButton("📊 Detailed Stats", callback_data="stats"), InlineKeyboardButton("📈 View Mexc Positions", callback_data="positions")],
             [InlineKeyboardButton("⚙️ View Configuration", callback_data="config"),
              InlineKeyboardButton(f"{'🔴 Disable' if bot_cfg.get('use_real_trading') else '🟢 Enable'} Real Mode", callback_data="toggle_real_trading")]
         ]
@@ -1484,7 +1484,7 @@ class TelegramBotHandler:
                 await msg_obj.reply_text(status_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=constants.ParseMode.HTML)
         except Exception as e:
             if "message is not modified" not in str(e).lower(): logger.error(f"status_command error: {e}")
-            
+
     async def config_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         global INDICATOR_SETTINGS
         if not await self.is_authorized(update): return
@@ -1525,7 +1525,7 @@ class TelegramBotHandler:
 
         text += f"<b><u>⚙️ Operational & Risk Settings:</u></b>\n"
         text += f"  Real Trading Active: {'✅ YES (REAL FUNDS)' if cfg['use_real_trading'] else '❌ NO (SIMULATION)'}\n"
-        text += f"  Hedge Mode (Binance): {'✅ ACTIVE' if cfg['hedge_mode_enabled'] else '❌ INACTIVE'}\n"
+        text += f"  Hedge Mode (Mexc): {'✅ ACTIVE' if cfg['hedge_mode_enabled'] else '❌ INACTIVE'}\n"
         text += f"  Daily Profit Target: {cfg['daily_profit_target_percentage']}% of starting balance\n"
         text += f"  Daily Loss Limit: {cfg['daily_loss_limit_percentage']}% of starting balance\n"
         text += f"  Signal Check Interval: {cfg['signal_check_interval_seconds']} seconds\n"
@@ -1551,7 +1551,7 @@ class TelegramBotHandler:
                 await msg_obj.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=constants.ParseMode.HTML)
         except Exception as e:
             if "message is not modified" not in str(e).lower(): logger.error(f"config_command error: {e}")
-            
+
     async def set_config_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         global INDICATOR_SETTINGS # Needed because this function can modify INDICATOR_SETTINGS
         if not await self.is_authorized(update): return
@@ -1636,7 +1636,7 @@ class TelegramBotHandler:
         status_msg = await msg_obj.reply_text("🔄 Fetching open positions...")
         try:
             pos=self.trading_bot.mexc_api.get_open_positions()
-            text=f"📈<b>OPEN POSITIONS ON BINANCE</b>📈\n"
+            text=f"📈<b>OPEN POSITIONS ON MEXC</b>📈\n"
             if not pos: text+="\nNo open positions found."
             else:
                 found=False
@@ -1726,7 +1726,7 @@ class TelegramBotHandler:
 
     async def close_all_positions_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
-        if not self.trading_bot or not self.trading_bot.binance_api: await update.message.reply_text("Bot/API not initialized."); return
+        if not self.trading_bot or not self.trading_bot.mexc_api: await update.message.reply_text("Bot/API not initialized."); return
         if not self.trading_bot.config.get("use_real_trading"): await update.message.reply_text("Real trading OFF. /closeall only for real."); return
         await update.message.reply_text("⚠️ Sure to MARKET CLOSE all REAL open positions?",reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ Yes,Close All REAL",callback_data="confirm_close_all_real")],[InlineKeyboardButton("❌ No,Cancel",callback_data="status")]]))
 
@@ -1747,7 +1747,7 @@ class TelegramBotHandler:
                 close_p={'symbol':sym,'side':side,'order_type':"MARKET",'quantity':abs(amt),'reduceOnly':True}
                 if self.trading_bot.config.get("hedge_mode_enabled"):close_p['positionSide']=pos_side
                 logger.info(f"Closing {sym}:{side} MKT Qty:{abs(amt)} PosSide:{pos_side if self.trading_bot.config.get('hedge_mode_enabled')else 'N/A'}")
-                closed_ord=self.binance_api.create_order(**close_p)
+                closed_ord=self.trading_bot.mexc_api.create_order(**close_p)
                 if closed_ord and closed_ord.get('orderId'):
                     closed_c+=1;logger.info(f"MKT close {sym} ID:{closed_ord['orderId']}")
                     active_bot_trade=next((t for t in ACTIVE_TRADES if t['symbol']==sym and not t.get('completed')and t.get('real_trade')),None)
@@ -1759,7 +1759,7 @@ class TelegramBotHandler:
             res_text=f"✅ Closed orders for {closed_c} positions."
             if error_c>0:res_text+=f"\n⚠️ Failed to close {error_c} positions."
             await update.callback_query.edit_message_text(res_text)
-        except Exception as e:logger.error(f"Error /closeall:{e}",exc_info=True);await update.callback_query.edit_message_text(f"❌ Error closing all:{str(e)}")
+        except Exception as e:logger.error(f"Err /closeall:{e}",exc_info=True);await update.callback_query.edit_message_text(f"❌ Err close all:{str(e)}")
 
     async def set_leverage_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
@@ -1776,176 +1776,118 @@ class TelegramBotHandler:
 
     async def set_mode_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
-        if not self.trading_bot: await update.message.reply_text("Bot not init."); return
-        msg_obj=update.callback_query.message if update.callback_query else update.message
-        res_text="Trading stop initiated."if self.trading_bot.stop_trading()else "Trading already stopped."
-        if update.callback_query: await update.callback_query.edit_message_text(res_text)
-        else: await msg_obj.reply_text(res_text)
-
-    async def close_all_positions_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
-        if not await self.is_authorized(update): return
-        if not self.trading_bot or not self.trading_bot.binance_api: await update.message.reply_text("Bot/API not init."); return
-        if not self.trading_bot.config.get("use_real_trading"): await update.message.reply_text("Real trading OFF./closeall only for real."); return
-        await update.message.reply_text("⚠️ Sure to MARKET CLOSE all REAL open positions?",reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ Yes,Close All REAL",callback_data="confirm_close_all_real")],[InlineKeyboardButton("❌ No,Cancel",callback_data="status")]]))
-
-    async def _confirm_close_all_positions_real(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
-        if not await self.is_authorized(update): return
-        await update.callback_query.edit_message_text("🔄 Closing all REAL open positions...")
-        closed_c,error_c=0,0
-        try:
-            open_pos=self.trading_bot.mexc_api.get_open_positions()
-            if not open_pos: await update.callback_query.edit_message_text("No open positions found."); return
-            symbols_with_pos=list(set(p['symbol']for p in open_pos if float(p.get('positionAmt',0))!=0))
-            if not symbols_with_pos: await update.callback_query.edit_message_text("No non-zero amount positions found."); return
-            logger.warning(f"Admin CLOSE ALL REAL POSITIONS for:{symbols_with_pos}")
-            for sym in symbols_with_pos:
-                curr_pos=next((p for p in open_pos if p['symbol']==sym and float(p.get('positionAmt',0))!=0),None)
-                if not curr_pos: continue
-                amt=float(curr_pos['positionAmt']);side="SELL"if amt>0 else "BUY";pos_side="LONG"if amt>0 else "SHORT"
-                close_p={'symbol':sym,'side':side,'order_type':"MARKET",'quantity':abs(amt),'reduceOnly':True}
-                if self.trading_bot.config.get("hedge_mode_enabled"):close_p['positionSide']=pos_side
-                logger.info(f"Closing {sym}:{side} MKT Qty:{abs(amt)} PosSide:{pos_side if self.trading_bot.config.get('hedge_mode_enabled')else 'N/A'}")
-                closed_ord=self.trading_bot.binance_api.create_order(**close_p)
-                if closed_ord and closed_ord.get('orderId'):
-                    closed_c+=1;logger.info(f"MKT close {sym} ID:{closed_ord['orderId']}")
-                    active_bot_trade=next((t for t in ACTIVE_TRADES if t['symbol']==sym and not t.get('completed')and t.get('real_trade')),None)
-                    if active_bot_trade:
-                        approx_exit=self.trading_bot.mexc_api.get_ticker_price(sym)or float(curr_pos.get('markPrice',0))
-                        self.trading_bot.complete_trade(active_bot_trade['id'],approx_exit,"manual_admin_close_all")
-                else:error_c+=1;logger.error(f"Failed MKT close {sym}.Resp:{closed_ord}")
-                await asyncio.sleep(0.2) # Use asyncio.sleep in async func
-            res_text=f"✅ Closed orders for {closed_c} positions."
-            if error_c>0:res_text+=f"\n⚠️ Failed to close {error_c} positions."
-            await update.callback_query.edit_message_text(res_text)
-        except Exception as e:logger.error(f"Err /closeall:{e}",exc_info=True);await update.callback_query.edit_message_text(f"❌ Err close all:{str(e)}")
-
-    async def set_leverage_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
-        if not await self.is_authorized(update): return
-        if not self.trading_bot: await update.message.reply_text("Bot not init."); return
+        if not self.trading_bot: await update.message.reply_text("Bot not initialized."); return
         args=context.args
-        if not args: await update.message.reply_text(f"Curr lev:{self.trading_bot.config['leverage']}x.Usage:/setleverage [val]"); return
-        try:
-            lev=int(args[0])
-            if not 1<=lev<=125: await update.message.reply_text("Lev must be 1-125."); return
-            if self.trading_bot.config.get("ai_mode_active"): await update.message.reply_text("⚠️ AI Mode ACTIVE.Leverage set by AI.This manual change may be overridden.")
-            self.trading_bot.config['leverage']=lev
-            await update.message.reply_text(f"Bot default leverage for NEW trades set to {lev}x.(May be overridden by AI/Trading Mode).")
-        except ValueError: await update.message.reply_text("Invalid number.")
-
-    async def set_mode_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
-        if not await self.is_authorized(update): return
-        if not self.trading_bot: await update.message.reply_text("Bot not init."); return
-        args=context.args
-        if not args: await update.message.reply_text(f"Curr mode:{self.trading_bot.config['trading_mode']}.Usage:/setmode [safe|standard|aggressive]"); return
+        if not args: await update.message.reply_text(f"Current mode:{self.trading_bot.config['trading_mode']}.Usage:/setmode [safe|standard|aggressive]"); return
         mode=args[0].lower()
-        if mode not in TRADING_MODES: await update.message.reply_text(f"Invalid mode.Opts:{', '.join(TRADING_MODES.keys())}"); return
-        if self.trading_bot.config.get("ai_mode_active"): await update.message.reply_text("⚠️ AI Mode ACTIVE.Trading mode set by AI.This manual change will likely be overridden.")
+        if mode not in TRADING_MODES: await update.message.reply_text(f"Invalid mode. Options:{', '.join(TRADING_MODES.keys())}"); return
+        if self.trading_bot.config.get("ai_mode_active"): await update.message.reply_text("⚠️ AI Mode ACTIVE. Trading mode set by AI. This manual change will likely be overridden.")
         self.trading_bot.config['trading_mode']=mode
         self.trading_bot.apply_trading_mode_settings()
-        await update.message.reply_text(f"Trading mode set to <b>{mode}</b>.Settings(L,TP,SL)applied:\nL:{self.trading_bot.config['leverage']}x,TP:{self.trading_bot.config['take_profit']}%,SL:{self.trading_bot.config['stop_loss']}%",parse_mode=constants.ParseMode.HTML)
+        await update.message.reply_text(f"Trading mode set to <b>{mode}</b>. Settings(L,TP,SL)applied:\nL:{self.trading_bot.config['leverage']}x,TP:{self.trading_bot.config['take_profit']}%,SL:{self.trading_bot.config['stop_loss']}%",parse_mode=constants.ParseMode.HTML)
 
     async def add_pair_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
-        if not self.trading_bot: await update.message.reply_text("Bot not init."); return
+        if not self.trading_bot: await update.message.reply_text("Bot not initialized."); return
         args=context.args
         if not args: await update.message.reply_text(f"Static pairs:{','.join(self.trading_bot.config.get('static_trading_pairs',[]))}.Usage:/addpair SYMBOL"); return
         symbol=args[0].upper()
-        if self.trading_bot.config.get("dynamic_pair_selection"): await update.message.reply_text("Dyn.pair ON.Use /watchlist."); return
+        if self.trading_bot.config.get("dynamic_pair_selection"): await update.message.reply_text("Dynamic pair selection is ON. Use /watchlist to manage pairs."); return
         static_p=self.trading_bot.config.get("static_trading_pairs",[])
-        if symbol in static_p: await update.message.reply_text(f"{symbol} already in static list."); return
-        if self.trading_bot.binance_api and not self.trading_bot.binance_api.get_ticker_price(symbol): await update.message.reply_text(f"Symbol {symbol} invalid."); return
+        if symbol in static_p: await update.message.reply_text(f"{symbol} is already in the static list."); return
+        if self.trading_bot.mexc_api and not self.trading_bot.mexc_api.get_ticker_price(symbol): await update.message.reply_text(f"Symbol {symbol} appears to be invalid or untradeable on Mexc Futures."); return
         static_p.append(symbol);self.trading_bot.config["static_trading_pairs"]=static_p
         if not self.trading_bot.config.get("dynamic_pair_selection"):
             with self.trading_bot.active_trading_pairs_lock:self.trading_bot.config["trading_pairs"]=list(static_p)
-        await update.message.reply_text(f"{symbol} added to static.Curr:{','.join(static_p)}")
+        await update.message.reply_text(f"{symbol} added to static pairs. Current list: {','.join(static_p)}")
 
     async def remove_pair_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
-        if not self.trading_bot: await update.message.reply_text("Bot not init."); return
+        if not self.trading_bot: await update.message.reply_text("Bot not initialized."); return
         args=context.args
         if not args: await update.message.reply_text(f"Static pairs:{','.join(self.trading_bot.config.get('static_trading_pairs',[]))}.Usage:/removepair SYMBOL"); return
         symbol=args[0].upper()
-        if self.trading_bot.config.get("dynamic_pair_selection"): await update.message.reply_text("Dyn.pair ON.Use /watchlist."); return
+        if self.trading_bot.config.get("dynamic_pair_selection"): await update.message.reply_text("Dynamic pair selection is ON. Use /watchlist to manage pairs."); return
         static_p=self.trading_bot.config.get("static_trading_pairs",[])
-        if symbol not in static_p: await update.message.reply_text(f"{symbol} not in static list."); return
+        if symbol not in static_p: await update.message.reply_text(f"{symbol} is not in the static list."); return
         static_p.remove(symbol);self.trading_bot.config["static_trading_pairs"]=static_p
         if not self.trading_bot.config.get("dynamic_pair_selection"):
             with self.trading_bot.active_trading_pairs_lock:self.trading_bot.config["trading_pairs"]=list(static_p)
-        await update.message.reply_text(f"{symbol} removed.Static:{','.join(static_p)}")
+        await update.message.reply_text(f"{symbol} removed. Current static pairs: {','.join(static_p)}")
 
     async def set_profit_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
-        if not self.trading_bot: await update.message.reply_text("Bot not init."); return
+        if not self.trading_bot: await update.message.reply_text("Bot not initialized."); return
         args=context.args
-        if len(args)<2: await update.message.reply_text(f"Curr Daily Profit Target:{self.trading_bot.config['daily_profit_target_percentage']}% Limit:{self.trading_bot.config['daily_loss_limit_percentage']}%.\nUsage:/setprofit [target%] [loss_limit%]"); return
+        if len(args)<2: await update.message.reply_text(f"Current Daily Profit Target:{self.trading_bot.config['daily_profit_target_percentage']}% Limit:{self.trading_bot.config['daily_loss_limit_percentage']}%.\nUsage:/setprofit [target%] [loss_limit%]"); return
         try:
             target,limit=float(args[0]),float(args[1])
-            if not(0<target<=100 and 0<limit<=100):await update.message.reply_text("Perc must be 0-100."); return
+            if not(0<target<=100 and 0<limit<=100):await update.message.reply_text("Percentages must be between 0 and 100."); return
             self.trading_bot.config['daily_profit_target_percentage']=target;self.trading_bot.config['daily_loss_limit_percentage']=limit
-            await update.message.reply_text(f"Daily P/L limits set:Target {target}%,Loss -{limit}%")
-        except ValueError: await update.message.reply_text("Invalid numbers.")
+            await update.message.reply_text(f"Daily P/L limits set: Target {target}%, Loss -{limit}%")
+        except ValueError: await update.message.reply_text("Invalid numbers provided.")
 
     async def enable_real_trading_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
         msg_obj=update.callback_query.message if update.callback_query else update.message
-        if not self.trading_bot: await msg_obj.reply_text("Bot not init."); return
-        if not self.trading_bot.config["api_key"]or not self.trading_bot.config["api_secret"]: await msg_obj.reply_text("⚠️ API creds not set.Cannot enable real."); return
-        if self.trading_bot.config["use_real_trading"]: await msg_obj.reply_text("Real trading already ON."); return
-        status_msg=await msg_obj.reply_text("🔄 Testing API for REAL trading...")
+        if not self.trading_bot: await msg_obj.reply_text("Bot not initialized."); return
+        if not self.trading_bot.config["api_key"]or not self.trading_bot.config["api_secret"]: await msg_obj.reply_text("⚠️ API credentials not set. Cannot enable real trading."); return
+        if self.trading_bot.config["use_real_trading"]: await msg_obj.reply_text("Real trading is already ON."); return
+        status_msg=await msg_obj.reply_text("🔄 Testing API connection for REAL trading...")
         if self.trading_bot.mexc_api:
             acc_info=self.trading_bot.mexc_api.get_account_info()
-            if acc_info:self.trading_bot.config["use_real_trading"]=True;await status_msg.edit_text(f"✅ Real trading ENABLED!\n⚠️ Trades use REAL funds.Monitor!");logger.warning(f"REAL TRADING ENABLED by admin.")
-            else: await status_msg.edit_text("❌ API conn failed.Real NOT enabled.Check keys/perms/IP.")
-        else: await status_msg.edit_text("❌ Mexc API module N/A.Real NOT enabled.")
+            if acc_info:self.trading_bot.config["use_real_trading"]=True;await status_msg.edit_text(f"✅ Real trading ENABLED!\n⚠️ Trades will now use REAL funds. Please monitor carefully!");logger.warning(f"REAL TRADING ENABLED by admin.")
+            else: await status_msg.edit_text("❌ API connection failed. Real trading has NOT been enabled. Please check your API keys, permissions, and IP whitelist.")
+        else: await status_msg.edit_text("❌ Mexc API module not available. Real trading has NOT been enabled.")
 
     async def disable_real_trading_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
         msg_obj=update.callback_query.message if update.callback_query else update.message
-        if not self.trading_bot: await msg_obj.reply_text("Bot not init."); return
-        if not self.trading_bot.config["use_real_trading"]: await msg_obj.reply_text("Real trading already OFF(Sim mode)."); return
-        self.trading_bot.config["use_real_trading"]=False;await msg_obj.reply_text("✅ Real trading DISABLED.Bot in Sim mode.");logger.info("Real trading disabled by admin.")
+        if not self.trading_bot: await msg_obj.reply_text("Bot not initialized."); return
+        if not self.trading_bot.config["use_real_trading"]: await msg_obj.reply_text("Real trading is already OFF (Simulation mode)."); return
+        self.trading_bot.config["use_real_trading"]=False;await msg_obj.reply_text("✅ Real trading DISABLED. The bot is now in Simulation mode.");logger.info("Real trading disabled by admin.")
 
     async def test_api_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
-        if not self.trading_bot: await update.message.reply_text("Bot not init."); return
-        if not self.trading_bot.config.get("api_key")or not self.trading_bot.config.get("api_secret"): await update.message.reply_text("⚠️ API creds not set."); return
-        if not self.trading_bot.mexc_api: await update.message.reply_text("⚠️ Binance API module not init."); return
-        status_msg=await update.message.reply_text("🔄 Testing Mexc API conn...")
+        if not self.trading_bot: await update.message.reply_text("Bot not initialized."); return
+        if not self.trading_bot.config.get("api_key")or not self.trading_bot.config.get("api_secret"): await update.message.reply_text("⚠️ API credentials are not set."); return
+        if not self.trading_bot.mexc_api: await update.message.reply_text("⚠️ Mexc API module is not initialized."); return
+        status_msg=await update.message.reply_text("🔄 Testing Mexc API connection...")
         try:
             acc_info=self.trading_bot.mexc_api.get_account_info()
             if acc_info:
                 bal=self.trading_bot.mexc_api.get_balance()
                 text=(f"✅ API Test OK!\nAssets:{len(acc_info.get('assets',[]))},Pos:{len(acc_info.get('positions',[]))}\nUSDT Bal:${bal.get('total',0):.2f}(Avail:${bal.get('available',0):.2f})"if bal else"USDT Bal:N/A")
                 await status_msg.edit_text(text)
-            else: await status_msg.edit_text(f"❌ API Test Failed.\nget_account_info returned None.Check Key,Secret,Perms,IP.")
+            else: await status_msg.edit_text(f"❌ API Test Failed.\n`get_account_info` returned None. Check your API Key, Secret, Permissions, and IP Whitelist.")
         except Exception as e: await status_msg.edit_text(f"❌ API Test Exception:{str(e)}")
 
     async def toggle_dynamic_selection_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
-        if not self.trading_bot: await update.message.reply_text("Bot not init."); return
+        if not self.trading_bot: await update.message.reply_text("Bot not initialized."); return
         curr_stat=self.trading_bot.config.get("dynamic_pair_selection",False)
         new_stat=not curr_stat
         self.trading_bot.config["dynamic_pair_selection"]=new_stat
         if new_stat and(not self.trading_bot.dynamic_pair_scanner_thread or not self.trading_bot.dynamic_pair_scanner_thread.is_alive()):
             if self.trading_bot.running:
-                logger.info("Dyn.pair ON.Starting scanner thread.")
+                logger.info("Dynamic pair selection enabled. Starting scanner thread.")
                 self.trading_bot.dynamic_pair_scanner_thread=threading.Thread(target=self.trading_bot.dynamic_pair_scan_loop,daemon=True);self.trading_bot.dynamic_pair_scanner_thread.start()
-            else: logger.info("Dyn.pair ON,but bot not running.Scanner starts with /starttrade.")
+            else: logger.info("Dynamic pair selection enabled, but bot is not running. Scanner will start with /starttrade.")
         msg_suf=""
         if not new_stat:
             with self.trading_bot.active_trading_pairs_lock:self.trading_bot.config["trading_pairs"]=list(self.trading_bot.config.get("static_trading_pairs",[]))
-            msg_suf=f"\nBot uses static pairs:{self.trading_bot.config['trading_pairs']}"
-        else: msg_suf="\nDyn.scanner manages active pairs."
-        await update.message.reply_text(f"Dyn.Pair Selection:{'✅ ON'if new_stat else'❌ OFF'}.{msg_suf}");logger.info(f"Dyn.pair selection toggled to {new_stat}.")
+            msg_suf=f"\nBot will now use the static pairs list: {self.trading_bot.config['trading_pairs']}"
+        else: msg_suf="\nDynamic scanner will now manage the active trading pairs."
+        await update.message.reply_text(f"Dynamic Pair Selection is now {'✅ ON'if new_stat else'❌ OFF'}.{msg_suf}");logger.info(f"Dynamic pair selection toggled to {new_stat}.")
 
     async def manage_watchlist_command(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
-        if not self.trading_bot: await update.message.reply_text("Bot not init."); return
+        if not self.trading_bot: await update.message.reply_text("Bot not initialized."); return
         args=context.args
         if not args or args[0].lower()not in['add','remove','list','clear']: await update.message.reply_text("Usage:/watchlist [add|remove|list|clear] [SYMBOL_CSV]"); return
         action=args[0].lower();watchlist=self.trading_bot.config.get("dynamic_watchlist_symbols",[])
-        if action=='list': await update.message.reply_text(f"Dyn.Watchlist({len(watchlist)}):\n{','.join(watchlist)if watchlist else 'Empty'}"); return
-        if action=='clear': self.trading_bot.config["dynamic_watchlist_symbols"]=[];await update.message.reply_text("Dyn.watchlist cleared.");logger.info("Dyn.watchlist cleared."); return
+        if action=='list': await update.message.reply_text(f"Dynamic Watchlist ({len(watchlist)} pairs):\n{','.join(watchlist)if watchlist else 'Empty'}"); return
+        if action=='clear': self.trading_bot.config["dynamic_watchlist_symbols"]=[];await update.message.reply_text("Dynamic watchlist has been cleared.");logger.info("Dynamic watchlist cleared."); return
         if len(args)<2 and action in['add','remove']: await update.message.reply_text(f"Usage:/watchlist {action} SYMBOL1,SYMBOL2,..."); return
         syms_str=args[1];syms_proc=[s.strip().upper()for s in syms_str.split(',')]
         if action=='add':
@@ -1954,33 +1896,33 @@ class TelegramBotHandler:
                 for sym in syms_proc:
                     if self.trading_bot.mexc_api.get_ticker_price(sym):
                         if sym not in watchlist:watchlist.append(sym);added_c+=1
-                    else:logger.warning(f"Watchlist add:Invalid sym {sym}")
+                    else:logger.warning(f"Watchlist add: Invalid symbol {sym}")
             else:
                 for sym in syms_proc:
                     if sym not in watchlist:watchlist.append(sym);added_c+=1
-            self.trading_bot.config["dynamic_watchlist_symbols"]=watchlist;await update.message.reply_text(f"Added {added_c} new sym(s).Total:{len(watchlist)}");
-            if added_c>0:logger.info(f"Admin added to watchlist:{syms_str}")
+            self.trading_bot.config["dynamic_watchlist_symbols"]=watchlist;await update.message.reply_text(f"Added {added_c} new symbol(s). Total watchlist size: {len(watchlist)}");
+            if added_c>0:logger.info(f"Admin added to watchlist: {syms_str}")
         elif action=='remove':
             removed_c=0
             for sym in syms_proc:
                 if sym in watchlist:watchlist.remove(sym);removed_c+=1
-            self.trading_bot.config["dynamic_watchlist_symbols"]=watchlist;await update.message.reply_text(f"Removed {removed_c} sym(s).Total:{len(watchlist)}");
-            if removed_c>0:logger.info(f"Admin removed from watchlist:{syms_str}")
+            self.trading_bot.config["dynamic_watchlist_symbols"]=watchlist;await update.message.reply_text(f"Removed {removed_c} symbol(s). Total watchlist size: {len(watchlist)}");
+            if removed_c>0:logger.info(f"Admin removed from watchlist: {syms_str}")
 
     async def button_callback(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
         query=update.callback_query;await query.answer();data=query.data
         if data.startswith("start_mode_"):
-            if self.trading_bot.running: await query.edit_message_text("Trading already running./stoptrade first."); return
+            if self.trading_bot.running: await query.edit_message_text("Trading is already running. Use /stoptrade first."); return
             mode=data.replace("start_mode_","")
             if mode in TRADING_MODES:
                 self.trading_bot.config["trading_mode"]=mode
                 if self.trading_bot.start_trading():
                     start_msg=f"✅ Trading start initiated with <b>{mode.capitalize()}</b> mode."
-                    if self.trading_bot.config.get("ai_mode_active"):start_msg+="\n<i>Note:AI Mode ACTIVE and may adjust settings.</i>"
+                    if self.trading_bot.config.get("ai_mode_active"):start_msg+="\n<i>Note: AI Mode is ACTIVE and may adjust settings automatically.</i>"
                     await query.edit_message_text(start_msg,parse_mode=constants.ParseMode.HTML)
-                else: await query.edit_message_text("⚠️ Trading failed to start.Check logs.")
-            else: await query.edit_message_text(f"Unknown mode:{mode}")
+                else: await query.edit_message_text("⚠️ Trading failed to start. Please check the logs.")
+            else: await query.edit_message_text(f"Unknown mode: {mode}")
             return
         elif data=="select_trading_mode":await self.show_trading_mode_selection(update,context)
         elif data=="stop_trading":await self.stop_trading_command(update,context)
@@ -1993,21 +1935,21 @@ class TelegramBotHandler:
             if not self.trading_bot:return
             curr_real=self.trading_bot.config.get("use_real_trading",False)
             if not curr_real:
-                if not self.trading_bot.config["api_key"]or not self.trading_bot.config["api_secret"]:await query.edit_message_text("⚠️ API creds not set.");return
+                if not self.trading_bot.config["api_key"]or not self.trading_bot.config["api_secret"]:await query.edit_message_text("⚠️ API credentials are not set.");return
                 if self.trading_bot.mexc_api and self.trading_bot.mexc_api.get_account_info():self.trading_bot.config["use_real_trading"]=True;logger.warning("REAL TRADING ENABLED via quick toggle.")
-                else:await query.edit_message_text("❌ API conn test failed.");return
+                else:await query.edit_message_text("❌ API connection test failed.");return
             else:self.trading_bot.config["use_real_trading"]=False;logger.info("Real trading disabled via quick toggle.")
             await self.status_command(update,context)
 
     async def handle_message(self,update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not await self.is_authorized(update): return
-        await update.message.reply_text("Unknown command./help for options.")
+        await update.message.reply_text("Unknown command. Use /help for a list of available options.")
 
     async def error_handler(self,update:object,context:ContextTypes.DEFAULT_TYPE)->None:
-        logger.error(f"Unhandled exception:{context.error}",exc_info=context.error)
+        logger.error(f"Unhandled exception: {context.error}",exc_info=context.error)
         if isinstance(update,Update)and update.effective_chat:
-            try:await self.application.bot.send_message(chat_id=update.effective_chat.id,text="⚠️ Internal error.Devs notified via logs.")
-            except Exception as e_send:logger.error(f"Failed to send error notif:{e_send}")
+            try:await self.application.bot.send_message(chat_id=update.effective_chat.id,text="⚠️ An internal error occurred. The developers have been notified via the logs.")
+            except Exception as e_send:logger.error(f"Failed to send error notification to chat: {e_send}")
 
     def run(self):
         logger.info("Telegram bot polling started.")
@@ -2017,27 +1959,27 @@ class TelegramBotHandler:
 
 def main():
     logger.info("Bot starting up...")
-    if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN=="YOUR_FALLBACK_TELEGRAM_TOKEN": logger.critical("TELEGRAM_BOT_TOKEN_ENV not set.Bot cannot start."); return
-    if not ADMIN_USER_IDS: logger.critical("ADMIN_USER_IDS_ENV not set or invalid.Bot cannot auth users."); return
-    if(not MEXC_API_KEY or MEXC_API_KEY=="YOUR_FALLBACK_MEXC_API_KEY"or not MEXC_API_SECRET or MEXC_API_SECRET=="YOUR_FALLBACK_BINANCE_API_SECRET"):
-        logger.warning("Mexc API creds not fully set.Real trading/API functions will fail.")
+    if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN=="YOUR_FALLBACK_TELEGRAM_TOKEN": logger.critical("TELEGRAM_BOT_TOKEN_ENV not set. Bot cannot start."); return
+    if not ADMIN_USER_IDS: logger.critical("ADMIN_USER_IDS_ENV not set or invalid. Bot cannot authorize users."); return
+    if(not MEXC_API_KEY or MEXC_API_KEY=="YOUR_FALLBACK_MEXC_API_KEY"or not MEXC_API_SECRET or MEXC_API_SECRET=="YOUR_FALLBACK_MEXC_API_SECRET"):
+        logger.warning("Mexc API credentials not fully set. Real trading and API functions will fail.")
 
     telegram_handler = TelegramBotHandler(TELEGRAM_BOT_TOKEN,ADMIN_USER_IDS)
     trading_bot_instance = TradingBot(CONFIG,telegram_handler)
     telegram_handler.set_trading_bot(trading_bot_instance)
 
-    logger.info(f"Admin User IDs:{ADMIN_USER_IDS}")
-    logger.info(f"Initial AI Mode:{CONFIG.get('ai_mode_active')},Use Gemini:{AI_MODE_CONFIG.get('use_gemini_for_analysis')and bool(gemini_model_instance)}")
+    logger.info(f"Admin User IDs: {ADMIN_USER_IDS}")
+    logger.info(f"Initial AI Mode: {CONFIG.get('ai_mode_active')}, Use Gemini: {AI_MODE_CONFIG.get('use_gemini_for_analysis')and bool(gemini_model_instance)}")
     logger.info("Press Ctrl+C to stop the bot.")
 
     try:
         telegram_handler.run()
     except KeyboardInterrupt:
-        logger.info("Ctrl+C received.Shutting down...")
+        logger.info("Ctrl+C received. Shutting down...")
     except Exception as e:
-        logger.critical(f"Fatal error in main:{e}",exc_info=True)
+        logger.critical(f"Fatal error in main: {e}", exc_info=True)
     finally:
-        logger.info("Main:Initiating graceful shutdown of trading bot...")
+        logger.info("Main: Initiating graceful shutdown of trading bot...")
         if trading_bot_instance and trading_bot_instance.running:
             trading_bot_instance.stop_trading()
         logger.info("Bot shutdown sequence complete.")
